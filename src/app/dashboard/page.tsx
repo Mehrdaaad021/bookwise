@@ -3,87 +3,121 @@
 
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar, Users, DollarSign, ExternalLink } from "lucide-react";
+import { formatFils } from "@/lib/money";
+import { CalendarDays, Users, Wallet, Clock3, ArrowRight, ExternalLink } from "lucide-react";
+import "./dash.css";
 
-export default function DashboardOverviewPage() {
+const STATUS_CLASS: Record<string, string> = {
+  pending: "b-pending",
+  confirmed: "b-confirmed",
+  checked_in: "b-checked_in",
+  in_progress: "b-in_progress",
+  completed: "b-completed",
+  cancelled: "b-cancelled",
+  no_show: "b-no_show",
+};
+
+export default function OverviewPage() {
   const { data: ws } = trpc.workspace.getMyWorkspace.useQuery();
-  const { data: dash, isLoading } = trpc.workspace.getDashboard.useQuery(
+  const { data, isLoading } = trpc.workspace.getDashboard.useQuery(
     { organizationId: ws?.organization.id ?? "" },
     { enabled: !!ws?.organization.id }
   );
 
-  const stats = [
-    { label: "Today's appointments", value: dash ? String(dash.todayCount) : "—", icon: Calendar, color: "text-orange-600 bg-orange-50" },
-    { label: "Customers", value: dash ? String(dash.customerCount) : "—", icon: Users, color: "text-blue-600 bg-blue-50" },
-    { label: "Completed revenue", value: dash ? `AED ${(dash.completedRevenueFils / 100).toLocaleString()}` : "—", icon: DollarSign, color: "text-emerald-600 bg-emerald-50" },
-  ];
+  const next = data?.upcoming?.[0];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div>
+      <div className="dh">
         <div>
-          <h1 className="text-2xl font-bold text-stone-800">Overview</h1>
-          <p className="text-sm text-stone-500">Timezone: {dash?.timezone ?? ws?.organization.timezone ?? "—"}</p>
+          <h1>Overview</h1>
+          <p>{ws?.organization.name ?? "Loading..."} · {data?.timezone ?? ws?.organization.timezone ?? ""}</p>
         </div>
-        <Link href={`/book/${ws?.organization.slug ?? ""}`} target="_blank">
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-            <ExternalLink className="w-4 h-4 mr-2" /> Public booking page
-          </Button>
-        </Link>
+        <div className="dh-actions">
+          <Link className="btn btn-ghost" href={`/book/${ws?.organization.slug ?? ""}`} target="_blank" rel="noreferrer">
+            <ExternalLink size={14} /> Public page
+          </Link>
+          <Link className="btn btn-dark" href="/dashboard/calendar">
+            <CalendarDays size={14} /> Open calendar
+          </Link>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}><CardContent className="p-6"><div className="h-10 bg-stone-100 rounded animate-pulse" /></CardContent></Card>
-          ))}
-        </div>
+      {isLoading || !data ? (
+        <div className="panel"><div className="empty">Loading workspace...</div></div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {stats.map((s) => (
-            <Card key={s.label} className="shadow-sm border-stone-200">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${s.color}`}>
-                  <s.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-stone-800">{s.value}</p>
-                  <p className="text-xs text-stone-500">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Card className="shadow-sm border-stone-200">
-        <CardHeader><CardTitle className="text-base">Upcoming appointments</CardTitle></CardHeader>
-        <CardContent>
-          {!dash ? null : dash.upcoming.length === 0 ? (
-            <p className="text-sm text-stone-500 text-center py-6">No upcoming appointments yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {dash.upcoming.map((a) => (
-                <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-stone-100">
-                  <div>
-                    <p className="text-sm font-medium text-stone-800">{a.serviceName} — {a.customerName}</p>
-                    <p className="text-xs text-stone-500">{a.staffName} · {a.whenLocal}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    a.status === "confirmed" ? "bg-emerald-100 text-emerald-700"
-                    : a.status === "pending" ? "bg-amber-100 text-amber-700"
-                    : "bg-stone-100 text-stone-600"
-                  }`}>
-                    {a.status}
-                  </span>
-                </div>
-              ))}
+        <>
+          <div className="kpis">
+            <div className="kpi">
+              <div className="lbl">
+                <i style={{ background: "#fef3e7", color: "#ea580c" }}><Clock3 size={14} /></i>
+                Today
+              </div>
+              <div className="val">{data.todayCount}</div>
+              <div className="hint">appointments on the books</div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="kpi">
+              <div className="lbl">
+                <i style={{ background: "#eef2ff", color: "#4f46e5" }}><Users size={14} /></i>
+                Customers
+              </div>
+              <div className="val">{data.customerCount}</div>
+              <div className="hint">unique client records</div>
+            </div>
+            <div className="kpi">
+              <div className="lbl">
+                <i style={{ background: "#eef7ee", color: "#16a34a" }}><Wallet size={14} /></i>
+                Completed revenue
+              </div>
+              <div className="val">{formatFils(data.completedRevenueFils)}</div>
+              <div className="hint">all-time, completed only</div>
+            </div>
+            <div className="kpi">
+              <div className="lbl">
+                <i style={{ background: "#f5f5f4", color: "#57534e" }}><CalendarDays size={14} /></i>
+                Next up
+              </div>
+              <div className="val" style={{ fontSize: 15, lineHeight: 1.35, marginTop: 12 }}>
+                {next ? next.whenLocal : "Nothing scheduled"}
+              </div>
+              <div className="hint">{next ? `${next.serviceName} · ${next.customerName}` : "the calendar is clear"}</div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <h2>Upcoming appointments</h2>
+              <Link className="btn btn-ghost btn-sm" href="/dashboard/appointments">
+                View all <ArrowRight size={12} />
+              </Link>
+            </div>
+            {data.upcoming.length === 0 ? (
+              <div className="empty">No upcoming appointments. New bookings appear here instantly.</div>
+            ) : (
+              <table className="tbl">
+                <thead>
+                  <tr><th>When</th><th>Service</th><th>Customer</th><th>Professional</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {data.upcoming.map((a) => (
+                    <tr key={a.id}>
+                      <td style={{ fontWeight: 600 }}>{a.whenLocal}</td>
+                      <td>{a.serviceName}</td>
+                      <td>{a.customerName}</td>
+                      <td>{a.staffName}</td>
+                      <td>
+                        <span className={`badge ${STATUS_CLASS[a.status] ?? "b-completed"}`}>
+                          <i />{a.status.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
