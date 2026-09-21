@@ -13,7 +13,8 @@ export const servicesRouter = router({
   listAdminServices: protectedProcedure
     .input(z.object({ organizationId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await requireOrgMembership(ctx, input.organizationId);
+      const membership = await requireOrgMembership(ctx, input.organizationId);
+      assertRole(membership.role, ["owner", "manager"]); // 🔒 read is admin-only
 
       const rows = await ctx.db.query.services.findMany({
         where: eq(services.organizationId, input.organizationId),
@@ -49,7 +50,9 @@ export const servicesRouter = router({
   listStaffOptions: protectedProcedure
     .input(z.object({ organizationId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await requireOrgMembership(ctx, input.organizationId);
+      const membership = await requireOrgMembership(ctx, input.organizationId);
+      assertRole(membership.role, ["owner", "manager"]); // 🔒 read is admin-only
+
       const rows = await ctx.db.query.staffProfiles.findMany({
         where: eq(staffProfiles.organizationId, input.organizationId),
         orderBy: (s, { asc }) => [asc(s.displayOrder)],

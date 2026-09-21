@@ -38,3 +38,12 @@
 10. **shadcn/ui (Base UI variant)**
     Note: Base UI components do not use Radix `asChild`; triggers render their own
     button. Learned during implementation (nested-button hydration fix).
+11. **Authorization is layered, not UI-only**
+    Why: UI route guards (workspace-shell.tsx) only hide links.
+    A determined user can call tRPC endpoints directly.
+    Decision: every admin procedure (settings, services, staff,
+    availability, reports) runs `assertRole(membership.role,
+    ["owner", "manager"])` server-side before any query.
+    Audit, being forensic, additionally requires `owner` only.
+    Result: the API is the source of truth — UI is just a
+    friendly skin.    

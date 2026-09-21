@@ -23,7 +23,9 @@ export const availabilityRouter = router({
   getAvailabilitySettings: protectedProcedure
     .input(z.object({ organizationId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await requireOrgMembership(ctx, input.organizationId);
+      const membership = await requireOrgMembership(ctx, input.organizationId);
+      assertRole(membership.role, ["owner", "manager"]); // 🔒 read is admin-only
+
       const org = await ctx.db.query.organizations.findFirst({
         where: eq(organizations.id, input.organizationId),
       });

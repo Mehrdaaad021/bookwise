@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { format, subDays } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import { protectedProcedure, requireOrgMembership, router } from "../trpc";
+import { assertRole, protectedProcedure, requireOrgMembership, router } from "../trpc";
 import { organizations } from "@/db/schema/organizations";
 import { appointments } from "@/db/schema/appointments";
 import { customers } from "@/db/schema/customers";
@@ -14,7 +14,9 @@ export const reportsRouter = router({
   getReports: protectedProcedure
     .input(z.object({ organizationId: z.string(), rangeDays: z.number().int().min(7).max(90) }))
     .query(async ({ ctx, input }) => {
-      await requireOrgMembership(ctx, input.organizationId);
+      const membership = await requireOrgMembership(ctx, input.organizationId);
+      assertRole(membership.role, ["owner", "manager"]); // 🔒 financial data is admin-only
+
       const org = await ctx.db.query.organizations.findFirst({
         where: eq(organizations.id, input.organizationId),
       });
