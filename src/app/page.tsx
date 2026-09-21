@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import {
-  CalendarClock, ShieldCheck, BarChart3, Users, ScrollText, Zap,
+  CalendarClock, ShieldCheck, BarChart3, Users, ScrollText,
   ArrowRight, Sparkles, CheckCircle2, Lock, Globe2,
 } from "lucide-react";
 
@@ -14,6 +14,9 @@ const css = `
 .bw-l { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f7f6f3; color: #171512; -webkit-font-smoothing: antialiased; }
 .bw-l * { box-sizing: border-box; }
 .bw-l a { text-decoration: none; color: inherit; }
+.bw-l a.bw-btn-primary { color: #ffffff; }
+.bw-l a.bw-btn-ghost { color: #171512; }
+.bw-live a { color: inherit; }
 .bw-nav { position: sticky; top: 0; z-index: 20; background: rgba(247,246,243,.85); backdrop-filter: blur(10px); border-bottom: 1px solid #e8e5df; }
 .bw-nav-in { max-width: 1120px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
 .bw-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
@@ -22,7 +25,7 @@ const css = `
 .bw-nav-links a:hover { color: #171512; }
 .bw-nav-cta { display: flex; gap: 10px; align-items: center; }
 .bw-btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; font-weight: 600; font-size: 14px; padding: 10px 18px; transition: all .15s; border: 1px solid transparent; cursor: pointer; }
-.bw-btn-primary { background: #171512; color: #fff; }
+.bw-btn-primary { background: #171512; color: #ffffff; }
 .bw-btn-primary:hover { background: #292524; transform: translateY(-1px); }
 .bw-btn-ghost { background: #fff; border-color: #e0ddd6; color: #171512; }
 .bw-btn-ghost:hover { border-color: #c9c5bc; transform: translateY(-1px); }
@@ -53,8 +56,8 @@ const css = `
 .bw-feat .ico { width: 38px; height: 38px; border-radius: 10px; background: #fef3e7; color: #ea580c; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
 .bw-feat h3 { font-size: 15.5px; font-weight: 700; }
 .bw-feat p { margin-top: 8px; font-size: 13.5px; line-height: 1.6; color: #57534e; }
-.bw-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: step; }
-.bw-step { position: relative; background: #fff; border: 1px solid #e8e5df; border-radius: 16px; padding: 26px; }
+.bw-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.bw-step { background: #fff; border: 1px solid #e8e5df; border-radius: 16px; padding: 26px; }
 .bw-step .num { font-size: 13px; font-weight: 800; color: #ea580c; letter-spacing: .08em; }
 .bw-step h3 { margin-top: 10px; font-size: 16px; font-weight: 700; }
 .bw-step p { margin-top: 8px; font-size: 13.5px; line-height: 1.6; color: #57534e; }
@@ -134,11 +137,11 @@ export default async function HomePage() {
             <p>Pick a service, see real availability computed from staff hours, breaks and buffers, and book in four steps.</p>
             <span className="go">Open booking flow <ArrowRight size={14} /></span>
           </Link>
-          <Link href="/book/demo-salon/manage?token=invalid">
+          <Link href="/login">
             <span className="ico" style={{ background: "#eef7ee", color: "#16a34a" }}><CheckCircle2 size={20} /></span>
             <h3>Manage a booking</h3>
             <p>Customers reschedule or cancel from a private token link — enforced by the business&apos;s policy windows.</p>
-            <span className="go">See the manage page <ArrowRight size={14} /></span>
+            <span className="go">From the confirmation page <ArrowRight size={14} /></span>
           </Link>
           <Link href="/login">
             <span className="ico" style={{ background: "#eef2ff", color: "#4f46e5" }}><Users size={20} /></span>
