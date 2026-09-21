@@ -25,7 +25,7 @@ export function LoginForm() {
 
     setLoading(false);
     if (res?.error) {
-      setError("Sign-in failed. Please check your email and try again.");
+      setError("Access denied. This workspace is invite-only — use one of the demo accounts below.");
       return;
     }
     router.push("/dashboard");
@@ -39,13 +39,13 @@ export function LoginForm() {
         </div>
         <CardTitle className="text-xl font-bold text-stone-800">Bookwise</CardTitle>
         <CardDescription>
-          Sign in to your workspace. Demo mode: any email works.
+          Invite-only workspace sign-in
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Work email</Label>
             <Input
               id="email"
               type="email"
@@ -55,6 +55,14 @@ export function LoginForm() {
               required
             />
           </div>
+
+          <div className="text-[11px] text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-2 space-y-0.5">
+            <p className="font-medium text-stone-600">Demo accounts:</p>
+            <p><span className="font-mono">owner@bookwise.demo</span> — full access</p>
+            <p><span className="font-mono">manager@bookwise.demo</span> — management</p>
+            <p><span className="font-mono">staff@bookwise.demo</span> — operations only</p>
+          </div>
+
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
               {error}
