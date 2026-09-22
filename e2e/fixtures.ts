@@ -1,8 +1,7 @@
 // e2e/fixtures.ts
-import { test as base, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-export const test = base.extend<{}>({});
-export { expect };
+export { test, expect };
 
 /**
  * لاگین invite-only با retry.
@@ -37,11 +36,6 @@ export async function signOut(page: Page) {
 
 /**
  * یک نوبت کامل رزرو می‌کنه از landing تا confirmation و reference رو برمی‌گردونه.
- *
- * نکات پایداری:
- * - عوض شدن step از روی heading کارت تشخیص داده میشه (نه کلاس‌های مشترک)
- * - برای پیدا کردن slot، منتظر می‌مونیم "Checking availability..." واقعاً
- *   hidden بشه (یعنی query تموم شده)، بعد تعداد slot ها شمرده میشه
  */
 export async function bookDemoAppointment(page: Page, customerName: string): Promise<string> {
   await page.goto("/book/demo-salon");

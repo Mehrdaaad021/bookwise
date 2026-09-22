@@ -6,14 +6,14 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { trpc } from "@/trpc/client";
-import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Calendar, Clock, Scissors, Users,
-  CalendarClock, UserCircle, BarChart3, Settings, Menu, Bell, LogOut, Sparkles, ScrollText,
+  CalendarClock, UserCircle, BarChart3, Settings, Menu, LogOut, Sparkles, ScrollText,
 } from "lucide-react";
 
-const navGroups: { label: string; items: { href: string; label: string; icon: any }[] }[] = [
+const navGroups: { label: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
   {
     label: "Operate",
     items: [
@@ -74,9 +74,6 @@ const css = `
 .bw-date { font-size: 13px; color: #78716c; font-weight: 500; }
 .bw-env { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #a16207; background: #fef9c3; border: 1px solid #fde68a; border-radius: 999px; padding: 3px 10px; }
 .bw-top-right { display: flex; align-items: center; gap: 8px; }
-.bw-bell { position: relative; width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #57534e; background: none; border: none; cursor: pointer; }
-.bw-bell:hover { background: #f5f4f0; }
-.bw-bell i { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: #ea580c; }
 .bw-content { padding: 26px 28px 48px; width: 100%; max-width: 1180px; margin: 0 auto; }
 @media (max-width: 1024px) { .bw-side { display: none; } }
 `;
@@ -158,7 +155,6 @@ export function WorkspaceShell({ user, children }: {
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">{sidebar}</SheetContent>
             </Sheet>
-            <button className="bw-bell" style={{ display: "none" }} aria-hidden="true"><Bell size={16} /><i /></button>
             <span className="bw-date">
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </span>
