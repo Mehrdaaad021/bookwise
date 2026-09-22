@@ -3,9 +3,101 @@
 
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Check, Clock, MapPin, Phone, Sparkles, ArrowLeft, Info } from "lucide-react";
+import {
+  Check, Clock, MapPin, Phone, Sparkles, ArrowLeft, Info,
+  User, CalendarDays, Scissors,
+} from "lucide-react";
+
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+.bk { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f7f6f3; color: #171512; -webkit-font-smoothing: antialiased; min-height: 100vh; padding: 32px 20px 60px; }
+.bk * { box-sizing: border-box; }
+.bk a { text-decoration: none; color: inherit; }
+.bk-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #78716c; margin-bottom: 20px; cursor: pointer; background: none; border: none; padding: 0; }
+.bk-back:hover { color: #171512; }
+.bk-head { max-width: 560px; margin: 0 auto 28px; text-align: center; }
+.bk-logo { width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, #f97316, #ea580c); display: flex; align-items: center; justify-content: center; color: #fff; margin: 0 auto 14px; }
+.bk-head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.025em; }
+.bk-head p { font-size: 14px; color: #78716c; margin-top: 4px; }
+.bk-meta { display: flex; gap: 14px; justify-content: center; margin-top: 10px; font-size: 12px; color: #a8a29e; flex-wrap: wrap; }
+.bk-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.bk-badge { display: inline-block; margin-top: 12px; padding: 4px 11px; border-radius: 999px; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; font-size: 11px; font-weight: 700; }
+.bk-info { max-width: 560px; margin: 0 auto 16px; padding: 10px 14px; border-radius: 10px; background: #fff; border: 1px solid #e8e5df; font-size: 12px; color: #57534e; display: flex; align-items: center; gap: 8px; }
+.bk-info svg { color: #ea580c; flex-shrink: 0; }
+
+.bk-steps { max-width: 560px; margin: 0 auto 22px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.bk-step { display: flex; align-items: center; gap: 6px; }
+.bk-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: all .15s; }
+.bk-dot.done { background: #22c55e; color: #fff; }
+.bk-dot.cur { background: #171512; color: #fff; }
+.bk-dot.todo { background: #eeece7; color: #a8a29e; }
+.bk-line { width: 20px; height: 2px; background: #eeece7; }
+.bk-line.done { background: #22c55e; }
+
+.bk-card { max-width: 560px; margin: 0 auto; background: #fff; border: 1px solid #e8e5df; border-radius: 16px; overflow: hidden; }
+.bk-card-head { padding: 18px 22px; border-bottom: 1px solid #f0eee9; }
+.bk-card-head h2 { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
+.bk-card-head p { font-size: 12.5px; color: #78716c; margin-top: 2px; }
+.bk-card-body { padding: 18px 22px; }
+
+.bk-opt { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e8e5df; border-radius: 12px; background: #fff; width: 100%; text-align: left; cursor: pointer; transition: all .12s; margin-bottom: 10px; font-family: inherit; }
+.bk-opt:hover { border-color: #ea580c; background: #fef9f4; transform: translateY(-1px); }
+.bk-opt .ico { width: 38px; height: 38px; border-radius: 10px; background: #f5f4f0; display: flex; align-items: center; justify-content: center; color: #57534e; flex-shrink: 0; font-weight: 700; font-size: 15px; }
+.bk-opt .ico.hot { background: #fef3e7; color: #ea580c; }
+.bk-opt .body { flex: 1; min-width: 0; }
+.bk-opt .body b { display: block; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.bk-opt .body span { font-size: 12px; color: #78716c; display: block; margin-top: 2px; }
+.bk-opt .rhs { text-align: right; font-size: 13px; font-weight: 700; color: #171512; }
+.bk-opt .rhs span { display: block; font-size: 11px; color: #a8a29e; font-weight: 500; margin-top: 2px; }
+
+.bk-dates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; }
+.bk-date { flex-shrink: 0; min-width: 66px; padding: 10px 6px; border-radius: 10px; border: 1px solid #e8e5df; background: #fff; cursor: pointer; text-align: center; font-family: inherit; transition: all .12s; }
+.bk-date:hover { border-color: #ea580c; }
+.bk-date.on { background: #171512; color: #fff; border-color: #171512; }
+.bk-date .dow { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #a8a29e; }
+.bk-date.on .dow { color: #d6d3d1; }
+.bk-date .day { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0; }
+.bk-date .mon { font-size: 11px; color: #a8a29e; }
+.bk-date.on .day, .bk-date.on .mon { color: #fff; }
+
+.bk-slots-head { font-size: 12px; font-weight: 700; color: #78716c; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
+.bk-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+@media (max-width: 500px) { .bk-slots { grid-template-columns: repeat(3, 1fr); } }
+.bk-slot { padding: 9px 6px; border-radius: 8px; border: 1px solid #e8e5df; background: #fff; cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #171512; transition: all .12s; }
+.bk-slot:hover { border-color: #ea580c; background: #fef9f4; }
+.bk-empty { padding: 24px; text-align: center; color: #a8a29e; font-size: 13px; grid-column: 1 / -1; }
+
+.bk-summary { padding: 14px; border-radius: 12px; background: #faf9f6; border: 1px solid #e8e5df; margin-bottom: 18px; font-size: 13px; }
+.bk-summary b { display: block; font-size: 14px; font-weight: 700; }
+.bk-summary span { display: block; font-size: 12px; color: #78716c; margin-top: 3px; }
+.bk-summary .pr { font-size: 15px; font-weight: 800; color: #171512; margin-top: 6px; }
+
+.bk-form .f { margin-bottom: 14px; }
+.bk-form label { display: block; font-size: 12px; font-weight: 600; color: #57534e; margin-bottom: 5px; }
+.bk-form .input { width: 100%; padding: 10px 12px; border: 1px solid #e0ddd6; border-radius: 9px; font-size: 13px; font-family: inherit; outline: none; }
+.bk-form .input:focus { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, .12); }
+.bk-form textarea.input { resize: vertical; min-height: 70px; }
+.bk-policies { padding: 10px 12px; border-radius: 10px; background: #faf9f6; border: 1px solid #e8e5df; font-size: 11px; line-height: 1.55; color: #78716c; margin-bottom: 14px; max-height: 120px; overflow-y: auto; }
+.bk-consent { display: flex; gap: 8px; font-size: 12.5px; color: #44403c; margin-bottom: 14px; line-height: 1.5; }
+.bk-consent span { font-size: 11px; color: #a8a29e; display: block; margin-top: 2px; }
+.bk-submit { width: 100%; padding: 13px; border: none; border-radius: 10px; background: #171512; color: #fff; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.bk-submit:hover { background: #292524; transform: translateY(-1px); }
+.bk-submit:disabled { background: #a8a29e; cursor: not-allowed; transform: none; }
+
+.bk-err { padding: 11px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 13px; margin-bottom: 12px; }
+
+.bk-confirm { max-width: 560px; margin: 0 auto; padding: 40px 24px; background: #fff; border: 1px solid #e8e5df; border-radius: 16px; text-align: center; }
+.bk-confirm .ic { width: 64px; height: 64px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.bk-confirm h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.bk-confirm p { color: #78716c; font-size: 14px; margin-top: 4px; }
+.bk-confirm .sum { max-width: 360px; margin: 22px auto 0; background: #faf9f6; border: 1px solid #e8e5df; border-radius: 12px; padding: 14px; text-align: left; font-size: 13px; }
+.bk-confirm .sum .row { display: flex; justify-content: space-between; padding: 4px 0; }
+.bk-confirm .sum .row span:first-child { color: #78716c; }
+.bk-confirm .sum .row span:last-child { font-weight: 600; text-align: right; max-width: 60%; }
+.bk-manage { margin-top: 18px; padding: 12px; background: #fef3e7; border: 1px solid #fed7aa; border-radius: 10px; font-size: 12px; color: #9a3412; }
+.bk-manage a { display: inline-block; margin-top: 6px; padding: 8px 16px; background: #fff; border: 1px solid #ea580c; color: #ea580c; border-radius: 8px; font-weight: 700; font-size: 12px; }
+.bk-manage a:hover { background: #ea580c; color: #fff; }
+`;
 
 interface Organization {
   id: string;
@@ -21,24 +113,10 @@ interface Organization {
   isDemo?: boolean;
 }
 
-type ServiceInfo = {
-  id: string;
-  name: string;
-  shortDescription: string | null;
-  durationMinutes: number;
-  priceFils: number;
-};
-
+type ServiceInfo = { id: string; name: string; shortDescription: string | null; durationMinutes: number; priceFils: number };
 type StaffInfo = { id: string | null; name: string; role?: string | null };
-
 type SlotInfo = { startISO: string; displayStart: string } & Record<string, unknown>;
-
-type AvailabilityInfo = {
-  timezone: string;
-  slots: SlotInfo[];
-  noAvailabilityReason: string | null;
-};
-
+type AvailabilityInfo = { timezone: string; slots: SlotInfo[]; noAvailabilityReason: string | null };
 type PoliciesInfo = {
   cancellationWindowHours: number;
   privacyNotice: string | null;
@@ -46,7 +124,6 @@ type PoliciesInfo = {
   allowStaffSelection: boolean;
   businessHours: { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string }[];
 };
-
 type BookingResult = {
   reference: string;
   manageToken: string;
@@ -59,14 +136,11 @@ type BookingResult = {
 type Step = "service" | "staff" | "datetime" | "details" | "confirmation";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MON_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function tomorrowKey(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function BookingFlow({ organization }: { organization: Organization }) {
@@ -77,10 +151,7 @@ export function BookingFlow({ organization }: { organization: Organization }) {
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
 
-  const { data: policies } = trpc.public.getPublicPolicies.useQuery({
-    organizationId: organization.id,
-  });
-
+  const { data: policies } = trpc.public.getPublicPolicies.useQuery({ organizationId: organization.id });
   const allowStaff = policies?.allowStaffSelection ?? true;
 
   const { data: services, isLoading: servicesLoading, error: servicesError } =
@@ -91,8 +162,6 @@ export function BookingFlow({ organization }: { organization: Organization }) {
     { enabled: !!selectedService?.id && allowStaff }
   );
 
-  // Use `enabled` flag: query fires ONLY when date + service are both set.
-  // This avoids undefined inputs without needing v11's `skipToken`.
   const availabilityReady = !!selectedDate && !!selectedService?.id;
   const { data: availability, isLoading: availabilityLoading, error: availabilityError } =
     trpc.public.getAvailability.useQuery(
@@ -110,7 +179,6 @@ export function BookingFlow({ organization }: { organization: Organization }) {
     { key: "staff", label: "Professional" },
     { key: "datetime", label: "Date & Time" },
     { key: "details", label: "Your Details" },
-    { key: "confirmation", label: "Confirmed" },
   ];
   const steps = allowStaff ? allSteps : allSteps.filter((s) => s.key !== "staff");
   const currentStepIndex = steps.findIndex((s) => s.key === step);
@@ -124,124 +192,113 @@ export function BookingFlow({ organization }: { organization: Organization }) {
 
   const handleServiceSelect = (s: ServiceInfo) => {
     setSelectedService(s);
-    if (allowStaff) {
-      setStep("staff");
-    } else {
+    if (allowStaff) setStep("staff");
+    else {
       setSelectedStaff({ id: null, name: "Any Available Professional" });
       enterDateTime();
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="text-center mb-6">
-        <div className="w-16 h-16 mx-auto rounded-full bg-orange-100 flex items-center justify-center mb-3">
-          <Sparkles className="w-8 h-8 text-orange-600" />
+    <div className="bk">
+      <style>{css}</style>
+
+      <button className="bk-back" onClick={() => window.history.length > 1 ? window.history.back() : (window.location.href = "/")}>
+        <ArrowLeft size={14} /> Back
+      </button>
+
+      <div className="bk-head">
+        <div className="bk-logo"><Sparkles size={28} /></div>
+        <h1>{organization.name}</h1>
+        {organization.description && <p>{organization.description}</p>}
+        <div className="bk-meta">
+          {organization.address && <span><MapPin size={12} />{organization.address}, {organization.city}</span>}
+          {organization.phone && <span><Phone size={12} />{organization.phone}</span>}
         </div>
-        <h1 className="text-2xl font-bold text-stone-800">{organization.name}</h1>
-        {organization.description && (
-          <p className="text-stone-500 mt-1 text-sm">{organization.description}</p>
-        )}
-        <div className="flex items-center justify-center gap-4 mt-3 text-xs text-stone-400">
-          {organization.address && (
-            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{organization.address}, {organization.city}</span>
-          )}
-          {organization.phone && (
-            <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{organization.phone}</span>
-          )}
-        </div>
-        {organization.isDemo && (
-          <span className="inline-block mt-3 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
-            Demo Workspace
-          </span>
-        )}
+        {organization.isDemo && <span className="bk-badge">Demo workspace</span>}
       </div>
 
       {policies && (
-        <div className="flex items-center justify-center gap-2 mb-6 text-xs text-stone-500 bg-white border border-stone-200 rounded-full px-4 py-2 w-fit mx-auto">
-          <Info className="w-3.5 h-3.5 text-orange-500" />
+        <div className="bk-info">
+          <Info size={14} />
           <span>
-            {todayHours?.isOpen
-              ? `Open today ${todayHours.openTime}–${todayHours.closeTime} (${organization.timezone})`
-              : "Closed today — see weekly hours below"}
+            {todayHours?.isOpen ? `Open today ${todayHours.openTime}–${todayHours.closeTime}` : "Closed today"}
             {" · "}Free cancellation up to {policies.cancellationWindowHours}h before
           </span>
         </div>
       )}
 
-      <div className="flex items-center justify-center gap-2 mb-8">
-        {steps.map((s, i) => (
-          <div key={s.key} className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
-              i < currentStepIndex ? "bg-emerald-500 text-white" :
-              i === currentStepIndex ? "bg-orange-500 text-white" :
-              "bg-stone-200 text-stone-500"
-            }`}>
-              {i < currentStepIndex ? <Check className="w-4 h-4" /> : i + 1}
+      {step !== "confirmation" && (
+        <div className="bk-steps">
+          {steps.map((s, i) => (
+            <div key={s.key} className="bk-step">
+              <div className={`bk-dot ${i < currentStepIndex ? "done" : i === currentStepIndex ? "cur" : "todo"}`}>
+                {i < currentStepIndex ? <Check size={14} /> : i + 1}
+              </div>
+              {i < steps.length - 1 && <div className={`bk-line ${i < currentStepIndex ? "done" : ""}`} />}
             </div>
-            {i < steps.length - 1 && (
-              <div className={`w-8 h-0.5 ${i < currentStepIndex ? "bg-emerald-500" : "bg-stone-200"}`} />
+          ))}
+        </div>
+      )}
+
+      {step === "confirmation" ? (
+        <Confirmation organization={organization} booking={bookingResult} slot={selectedSlot} date={selectedDate} />
+      ) : (
+        <div className="bk-card">
+          <div className="bk-card-head">
+            <h2>{steps[currentStepIndex]?.label}</h2>
+            <p>{stepDescription(step)}</p>
+          </div>
+          <div className="bk-card-body">
+            {step === "service" && (
+              <ServiceStep services={services ?? []} loading={servicesLoading} error={servicesError} onSelect={handleServiceSelect} />
+            )}
+            {step === "staff" && allowStaff && (
+              <StaffStep
+                staff={staff ?? []}
+                loading={staffLoading}
+                onSelect={(s) => { setSelectedStaff(s); enterDateTime(); }}
+                onBack={() => setStep("service")}
+              />
+            )}
+            {step === "datetime" && (
+              <DateTimeStep
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                availability={availability}
+                loading={availabilityLoading}
+                error={availabilityError}
+                onSelectSlot={(slot) => { setSelectedSlot(slot); setStep("details"); }}
+                onBack={() => setStep(allowStaff ? "staff" : "service")}
+              />
+            )}
+            {step === "details" && (
+              <DetailsStep
+                organizationSlug={organization.slug}
+                service={selectedService}
+                staff={selectedStaff}
+                slot={selectedSlot}
+                date={selectedDate}
+                policies={policies}
+                onConfirm={(result) => { setBookingResult(result); setStep("confirmation"); }}
+                onBack={() => setStep("datetime")}
+              />
             )}
           </div>
-        ))}
-      </div>
-
-      <Card className="shadow-sm border-stone-200">
-        <CardHeader>
-          <CardTitle className="text-lg">{steps[currentStepIndex]?.label}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {step === "service" && (
-            <ServiceStep
-              services={services ?? []}
-              loading={servicesLoading}
-              error={servicesError}
-              onSelect={handleServiceSelect}
-            />
-          )}
-          {step === "staff" && allowStaff && (
-            <StaffStep
-              staff={staff ?? []}
-              loading={staffLoading}
-              onSelect={(s) => { setSelectedStaff(s); enterDateTime(); }}
-              onBack={() => setStep("service")}
-            />
-          )}
-          {step === "datetime" && (
-            <DateTimeStep
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-              availability={availability}
-              loading={availabilityLoading}
-              error={availabilityError}
-              onSelectSlot={(slot) => { setSelectedSlot(slot); setStep("details"); }}
-              onBack={() => setStep(allowStaff ? "staff" : "service")}
-            />
-          )}
-          {step === "details" && (
-            <DetailsStep
-              organizationSlug={organization.slug}
-              service={selectedService}
-              staff={selectedStaff}
-              slot={selectedSlot}
-              date={selectedDate}
-              policies={policies}
-              onConfirm={(result) => { setBookingResult(result); setStep("confirmation"); }}
-              onBack={() => setStep("datetime")}
-            />
-          )}
-          {step === "confirmation" && (
-            <ConfirmationStep
-              organization={organization}
-              booking={bookingResult}
-              slot={selectedSlot}
-              date={selectedDate}
-            />
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
+}
+
+function stepDescription(step: Step): string {
+  switch (step) {
+    case "service": return "Choose the treatment you would like to book";
+    case "staff": return "Pick your professional, or let us assign the best available";
+    case "datetime": return "Select a day, then a time that works for you";
+    case "details": return "Just a few details so we can confirm your booking";
+    default: return "";
+  }
 }
 
 function ServiceStep({ services, loading, error, onSelect }: {
@@ -250,30 +307,26 @@ function ServiceStep({ services, loading, error, onSelect }: {
   error: unknown;
   onSelect: (s: ServiceInfo) => void;
 }) {
-  if (loading) return <div className="text-center py-8 text-stone-500">Loading services...</div>;
-  if (error) return <div className="text-center py-8 text-red-600">Failed to load services</div>;
-  if (!services.length) return <div className="text-center py-8 text-stone-500">No services available</div>;
+  if (loading) return <div className="bk-empty">Loading services...</div>;
+  if (error) return <div className="bk-err">Failed to load services. Please refresh.</div>;
+  if (!services.length) return <div className="bk-empty">No services available right now.</div>;
 
   return (
-    <div className="space-y-3">
+    <>
       {services.map((service) => (
-        <button key={service.id} onClick={() => onSelect(service)}
-          className="w-full text-left p-4 rounded-lg border border-stone-200 hover:border-orange-300 hover:shadow-sm transition-all group">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-medium text-stone-800 group-hover:text-orange-600 transition-colors">{service.name}</h3>
-              <p className="text-sm text-stone-500 mt-1">{service.shortDescription}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-stone-800">AED {(service.priceFils / 100).toFixed(0)}</p>
-              <p className="text-xs text-stone-400 flex items-center gap-1 mt-1">
-                <Clock className="w-3 h-3" />{service.durationMinutes} min
-              </p>
-            </div>
+        <button key={service.id} className="bk-opt" onClick={() => onSelect(service)}>
+          <div className="ico hot"><Scissors size={18} /></div>
+          <div className="body">
+            <b>{service.name}</b>
+            <span>{service.shortDescription || "—"}</span>
+          </div>
+          <div className="rhs">
+            AED {(service.priceFils / 100).toFixed(0)}
+            <span><Clock size={10} style={{ display: "inline", verticalAlign: "middle" }} /> {service.durationMinutes} min</span>
           </div>
         </button>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -283,36 +336,32 @@ function StaffStep({ staff, loading, onSelect, onBack }: {
   onSelect: (s: StaffInfo) => void;
   onBack: () => void;
 }) {
-  if (loading) return <div className="text-center py-8 text-stone-500">Loading staff...</div>;
+  if (loading) return <div className="bk-empty">Loading professionals...</div>;
 
   return (
-    <div className="space-y-3">
-      <Button variant="ghost" onClick={onBack} className="mb-2">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back
-      </Button>
+    <>
+      <button className="bk-back" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ArrowLeft size={14} /> Back to services
+      </button>
 
-      <button onClick={() => onSelect({ id: null, name: "Any Available Professional" })}
-        className="w-full text-left p-4 rounded-lg border border-stone-200 hover:border-orange-300 hover:shadow-sm transition-all flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-semibold">?</div>
-        <div>
-          <h3 className="font-medium text-stone-800">Any Available Professional</h3>
-          <p className="text-sm text-stone-500">We will assign the best available staff</p>
+      <button className="bk-opt" onClick={() => onSelect({ id: null, name: "Any Available Professional" })}>
+        <div className="ico">?</div>
+        <div className="body">
+          <b>Any Available Professional</b>
+          <span>We will assign the best available for your slot</span>
         </div>
       </button>
 
       {staff.map((s) => (
-        <button key={s.id} onClick={() => onSelect({ id: s.id, name: s.name, role: s.role })}
-          className="w-full text-left p-4 rounded-lg border border-stone-200 hover:border-orange-300 hover:shadow-sm transition-all flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-semibold">
-            {s.name.charAt(0)}
-          </div>
-          <div>
-            <h3 className="font-medium text-stone-800">{s.name}</h3>
-            {s.role && <p className="text-sm text-stone-500">{s.role}</p>}
+        <button key={s.id} className="bk-opt" onClick={() => onSelect({ id: s.id, name: s.name, role: s.role })}>
+          <div className="ico">{s.name.charAt(0)}</div>
+          <div className="body">
+            <b>{s.name}</b>
+            {s.role && <span>{s.role}</span>}
           </div>
         </button>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -326,65 +375,52 @@ function DateTimeStep({ selectedDate, onDateChange, availability, loading, error
   onBack: () => void;
 }) {
   const dates = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    const d = new Date(); d.setDate(d.getDate() + i);
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, d };
   });
 
   return (
-    <div>
-      <Button variant="ghost" onClick={onBack} className="mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back
-      </Button>
+    <>
+      <button className="bk-back" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ArrowLeft size={14} /> Back
+      </button>
 
-      <h3 className="font-medium mb-3 text-sm text-stone-600">Select a date</h3>
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
-        {dates.map((date) => {
-          const d = new Date(date);
-          const isSelected = selectedDate === date;
-          return (
-            <button key={date} onClick={() => onDateChange(date)}
-              className={`flex-shrink-0 px-3 py-2 rounded-lg text-center transition-all ${
-                isSelected ? "bg-orange-500 text-white" : "bg-white border border-stone-200 hover:border-orange-300"
-              }`}>
-              <div className="text-xs font-medium">{DAY_SHORT[d.getDay()]}</div>
-              <div className="text-lg font-bold">{d.getDate()}</div>
-              <div className="text-xs">{d.toLocaleDateString("en", { month: "short" })}</div>
-            </button>
-          );
-        })}
+      <div className="bk-slots-head">Pick a day</div>
+      <div className="bk-dates">
+        {dates.map(({ key, d }) => (
+          <button key={key} className={`bk-date ${selectedDate === key ? "on" : ""}`} onClick={() => onDateChange(key)}>
+            <div className="dow">{DAY_SHORT[d.getDay()]}</div>
+            <div className="day">{d.getDate()}</div>
+            <div className="mon">{MON_SHORT[d.getMonth()]}</div>
+          </button>
+        ))}
       </div>
 
       {selectedDate && (
         <>
-          <h3 className="font-medium mb-3 text-sm text-stone-600">
-            Available times ({availability?.timezone ?? "business timezone"})
-          </h3>
-
-          {loading ? (
-            <div className="text-center py-4 text-stone-500">Checking availability...</div>
-          ) : error ? (
-            <div className="text-center py-4 text-red-600">Failed to load availability. Please try another date.</div>
-          ) : availability?.slots?.length ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {availability.slots.map((slot, idx) => (
-                <button key={idx} onClick={() => onSelectSlot(slot)}
-                  className="py-2 px-3 rounded-lg border border-stone-200 hover:border-orange-400 hover:bg-orange-50 text-sm font-medium transition-all">
+          <div className="bk-slots-head">
+            Available times · {availability?.timezone ?? "business timezone"}
+          </div>
+          <div className="bk-slots">
+            {loading ? (
+              <div className="bk-empty">Checking availability...</div>
+            ) : error ? (
+              <div className="bk-empty">Failed to load slots. Please try another day.</div>
+            ) : availability?.slots?.length ? (
+              availability.slots.map((slot, idx) => (
+                <button key={idx} className="bk-slot" onClick={() => onSelectSlot(slot)}>
                   {slot.displayStart}
                 </button>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-4 text-stone-500">
-              {availability?.noAvailabilityReason || "No available times on this date"}
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="bk-empty">
+                {availability?.noAvailabilityReason || "No available times on this day"}
+              </div>
+            )}
+          </div>
         </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -407,13 +443,8 @@ function DetailsStep({ organizationSlug, service, staff, slot, date, policies, o
 
   const createBooking = trpc.public.createBooking.useMutation({
     onSuccess: (data) => onConfirm(data),
-    onError: (err) => {
-      console.error("Booking error:", err);
-      setError(err.message);
-    },
+    onError: (err) => setError(err.message),
   });
-
-  const isSubmitting = createBooking.isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -433,114 +464,91 @@ function DetailsStep({ organizationSlug, service, staff, slot, date, policies, o
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Button type="button" variant="ghost" onClick={onBack} className="mb-2">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back
-      </Button>
+    <form className="bk-form" onSubmit={handleSubmit}>
+      <button type="button" className="bk-back" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ArrowLeft size={14} /> Back
+      </button>
 
-      <div className="bg-stone-50 rounded-lg p-4 text-sm">
-        <p className="font-medium">{service?.name}</p>
-        <p className="text-stone-500">{staff?.name || "Any professional"} · {date} at {slot?.displayStart}</p>
-        <p className="font-semibold mt-1">AED {((service?.priceFils ?? 0) / 100).toFixed(0)}</p>
+      <div className="bk-summary">
+        <b>{service?.name}</b>
+        <span>{staff?.name || "Any professional"} · {date} at {slot?.displayStart}</span>
+        <div className="pr">AED {((service?.priceFils ?? 0) / 100).toFixed(0)}</div>
       </div>
 
-      <div>
-        <label className="text-sm font-medium text-stone-800">Full Name *</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
-          className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" />
+      <div className="f">
+        <label>Full name</label>
+        <input type="text" className="input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" />
       </div>
-      <div>
-        <label className="text-sm font-medium text-stone-800">Email *</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-          className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" />
+      <div className="f">
+        <label>Email</label>
+        <input type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
       </div>
-      <div>
-        <label className="text-sm font-medium text-stone-800">Phone *</label>
-        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+971 50 123 4567"
-          className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" />
+      <div className="f">
+        <label>Phone</label>
+        <input type="tel" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+971 50 123 4567" />
       </div>
-      <div>
-        <label className="text-sm font-medium text-stone-800">Notes (optional)</label>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-          className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none resize-none" />
+      <div className="f">
+        <label>Notes (optional)</label>
+        <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything we should know..." />
       </div>
 
       {(policies?.bookingTerms || policies?.privacyNotice) && (
-        <div className="text-[11px] leading-relaxed text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-3 max-h-28 overflow-y-auto space-y-1">
-          {policies?.bookingTerms && <p>{policies.bookingTerms}</p>}
-          {policies?.privacyNotice && <p>{policies.privacyNotice}</p>}
+        <div className="bk-policies">
+          {policies.bookingTerms && <p>{policies.bookingTerms}</p>}
+          {policies.privacyNotice && <p style={{ marginTop: 6 }}>{policies.privacyNotice}</p>}
         </div>
       )}
 
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} required
-          className="mt-1 rounded border-stone-300 text-orange-500 focus:ring-orange-300" />
-        <span className="text-sm text-stone-600">
-          I agree to the booking policy and privacy notice *
-          {policies && (
-            <span className="block text-[11px] text-stone-400 mt-0.5">
-              Free cancellation up to {policies.cancellationWindowHours} hours before the appointment.
-            </span>
-          )}
-        </span>
+      <label className="bk-consent">
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} required style={{ marginTop: 2 }} />
+        <div>
+          I agree to the booking policy and privacy notice.
+          <span>Free cancellation up to {policies?.cancellationWindowHours ?? 24} hours before the appointment.</span>
+        </div>
       </label>
 
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-      )}
+      {error && <div className="bk-err">{error}</div>}
 
-      <Button type="submit" disabled={isSubmitting || !consent}
-        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 text-base font-semibold">
-        {isSubmitting ? "Confirming..." : "Confirm Booking"}
-      </Button>
+      <button type="submit" disabled={createBooking.isPending || !consent} className="bk-submit">
+        {createBooking.isPending ? "Confirming..." : "Confirm booking"}
+      </button>
     </form>
   );
 }
 
-function ConfirmationStep({ organization, booking, slot, date }: {
+function Confirmation({ organization, booking, slot, date }: {
   organization: Organization;
   booking: BookingResult | null;
   slot: SlotInfo | null;
   date: string;
 }) {
-  if (!booking) return <div className="text-center py-8 text-stone-500">No booking data</div>;
+  if (!booking) return <div className="bk-empty">No booking data</div>;
 
   return (
-    <div className="text-center py-6">
-      <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-        <Check className="w-8 h-8 text-emerald-600" />
-      </div>
-      <h2 className="text-xl font-bold text-stone-800 mb-2">Booking Confirmed!</h2>
-      <p className="text-stone-500 mb-6">Your appointment has been successfully booked</p>
+    <div className="bk-confirm">
+      <div className="ic"><Check size={32} /></div>
+      <h2>Booking confirmed!</h2>
+      <p>Your appointment is now on the books</p>
 
-      <div className="bg-stone-50 rounded-lg p-4 text-left space-y-2 text-sm max-w-sm mx-auto">
-        <div className="flex justify-between"><span className="text-stone-500">Reference</span><span className="font-mono font-medium">{booking.reference}</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">Status</span><span className="capitalize">{booking.status}</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">Service</span><span>{booking.service?.name}</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">Professional</span><span>{booking.staffName}</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">Date</span><span>{date}</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">Time</span><span>{slot?.displayStart} ({booking.timezone})</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">Total</span><span className="font-semibold">AED {(booking.service?.priceFils / 100).toFixed(0)}</span></div>
+      <div className="sum">
+        <div className="row"><span>Reference</span><span style={{ fontFamily: "ui-monospace" }}>{booking.reference}</span></div>
+        <div className="row"><span>Status</span><span>{booking.status}</span></div>
+        <div className="row"><span>Service</span><span>{booking.service?.name}</span></div>
+        <div className="row"><span>Professional</span><span>{booking.staffName}</span></div>
+        <div className="row"><span>Date</span><span>{date}</span></div>
+        <div className="row"><span>Time</span><span>{slot?.displayStart} ({booking.timezone})</span></div>
+        <div className="row"><span>Total</span><span>AED {(booking.service?.priceFils / 100).toFixed(0)}</span></div>
       </div>
 
-      <div className="mt-4 p-3 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-600 max-w-sm mx-auto break-all">
-        <p className="font-medium mb-2">🔑 Manage your booking:</p>
-        <a
-          href={`/book/${organization.slug}/manage?token=${booking.manageToken}`}
-          className="inline-block w-full text-center bg-white border border-orange-300 text-orange-600 hover:bg-orange-50 font-medium rounded-lg px-3 py-2 transition-colors"
-        >
-          Open manage-booking page
-        </a>
-        <p className="text-[10px] text-stone-400 mt-2">Token: {booking.manageToken}</p>
+      <div className="bk-manage">
+        <b>🔑 Manage your booking</b>
+        <div style={{ marginTop: 4 }}>Use this private link to reschedule or cancel:</div>
+        <a href={`/book/${organization.slug}/manage?token=${booking.manageToken}`}>Open manage page</a>
       </div>
 
-      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 max-w-sm mx-auto">
+      <div style={{ marginTop: 14, padding: 10, background: "#fef3e7", border: "1px solid #fed7aa", borderRadius: 10, fontSize: 11, color: "#9a3412" }}>
         📧 Demo notification stored internally. No real email or SMS was sent.
       </div>
-
-      <p className="text-xs text-stone-400 mt-4">
-        Cancellation available up to 24 hours before your appointment.
-      </p>
     </div>
   );
 }

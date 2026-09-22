@@ -1,71 +1,142 @@
 // src/app/dashboard/audit/page.tsx
 "use client";
 
+import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollText } from "lucide-react";
+import { ScrollText, ChevronDown, ChevronRight, Filter } from "lucide-react";
+import "../dash.css";
 
-function toneFor(action: string): string {
-  if (action.startsWith("appointment")) return "bg-blue-50 text-blue-700 border-blue-200";
-  if (action.startsWith("settings")) return "bg-amber-50 text-amber-700 border-amber-200";
-  if (action.startsWith("service")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (action.startsWith("staff")) return "bg-purple-50 text-purple-700 border-purple-200";
-  if (action.startsWith("availability")) return "bg-orange-50 text-orange-700 border-orange-200";
-  return "bg-stone-50 text-stone-600 border-stone-200";
+const extraCss = `
+.aud-tbl td.cell-action { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.aud-chip { display: inline-flex; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+.aud-chip.appointment { background: #dbeafe; color: #1e40af; }
+.aud-chip.settings { background: #fef3c7; color: #92400e; }
+.aud-chip.service { background: #dcfce7; color: #166534; }
+.aud-chip.staff { background: #ede9fe; color: #5b21b6; }
+.aud-chip.availability { background: #fed7aa; color: #9a3412; }
+.aud-chip.other { background: #f5f5f4; color: #57534e; }
+.aud-row { cursor: pointer; }
+.aud-row:hover td { background: #faf9f6; }
+.aud-meta { padding: 12px 18px 16px; background: #faf9f6; font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #44403c; line-height: 1.55; word-break: break-word; }
+.aud-meta pre { white-space: pre-wrap; margin: 0; }
+.aud-meta-row { display: flex; gap: 10px; margin-bottom: 4px; }
+.aud-meta-row b { width: 80px; flex-shrink: 0; color: #78716c; font-weight: 600; }
+`;
+
+function categoryFor(action: string): string {
+  if (action.startsWith("appointment")) return "appointment";
+  if (action.startsWith("settings")) return "settings";
+  if (action.startsWith("service")) return "service";
+  if (action.startsWith("staff")) return "staff";
+  if (action.startsWith("availability")) return "availability";
+  return "other";
 }
 
 export default function AuditPage() {
   const { data: ws } = trpc.workspace.getMyWorkspace.useQuery();
+  const orgId = ws?.organization.id ?? "";
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [filter, setFilter] = useState("all");
+
   const { data: rows, isLoading, error } = trpc.audit.listAuditLogs.useQuery(
-    { organizationId: ws?.organization.id ?? "", limit: 100 },
-    { enabled: !!ws?.organization.id }
+    { organizationId: orgId, limit: 100 },
+    { enabled: !!orgId }
   );
 
+  const filtered = (rows ?? []).filter((r) => filter === "all" || categoryFor(r.action) === filter);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-stone-800 flex items-center gap-2">
-          <ScrollText className="w-6 h-6 text-orange-500" /> Audit Log
-        </h1>
-        <p className="text-sm text-stone-500">
-          Forensic trail of sensitive changes — visible to owners only
-        </p>
+    <div>
+      <style>{extraCss}</style>
+      <div className="dh">
+        <div>
+          <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ScrollText size={20} style={{ color: "#ea580c" }} />
+            Audit Log
+          </h1>
+          <p>Forensic trail of sensitive mutations · owner-only view</p>
+        </div>
+        <div className="dh-actions">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Filter size={14} color="#78716c" />
+            <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="all">All categories</option>
+              <option value="appointment">Appointments</option>
+              <option value="settings">Settings</option>
+              <option value="service">Services</option>
+              <option value="staff">Staff</option>
+              <option value="availability">Availability</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      {isLoading ? (
-        <Card><CardContent className="p-8 text-center text-stone-500">Loading audit trail...</CardContent></Card>
-      ) : error ? (
-        <Card>
-          <CardContent className="p-8 text-center text-red-600">
-            {error.message}
-          </CardContent>
-        </Card>
-      ) : !rows || rows.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-stone-500">No audit entries yet.</CardContent></Card>
-      ) : (
-        <Card className="shadow-sm border-stone-200">
-          <CardContent className="p-0 divide-y divide-stone-100">
-            {rows.map((r) => (
-              <div key={r.id} className="p-3 flex flex-wrap items-center gap-3">
-                <span className={`text-[11px] px-2 py-1 rounded-full border font-medium ${toneFor(r.action)}`}>
-                  {r.action}
-                </span>
-                <span className="text-xs text-stone-500">
-                  {r.entityType}
-                  {r.entityId && <span className="font-mono text-[10px] text-stone-400 ml-1">#{r.entityId.slice(0, 8)}</span>}
-                </span>
-                <span className="text-xs text-stone-600 ml-auto">by <span className="font-medium">{r.actorName}</span></span>
-                <span className="text-[11px] text-stone-400">{r.atLocal}</span>
-                {r.meta && Object.keys(r.meta as object).length > 0 && (
-                  <span className="w-full text-[10px] text-stone-400 font-mono bg-stone-50 border border-stone-100 rounded px-2 py-1 truncate">
-                    {JSON.stringify(r.meta)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <div className="panel">
+        {isLoading ? (
+          <div className="empty">Loading audit trail...</div>
+        ) : error ? (
+          <div className="err-box">{error.message}</div>
+        ) : filtered.length === 0 ? (
+          <div className="empty">
+            {filter === "all"
+              ? "No audit entries yet. Every sensitive change lands here."
+              : `No entries in the "${filter}" category.`}
+          </div>
+        ) : (
+          <table className="tbl aud-tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 36 }} />
+                <th>When</th>
+                <th>Actor</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th style={{ textAlign: "right" }}>ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => {
+                const isOpen = expanded === r.id;
+                const cat = categoryFor(r.action);
+                return (
+                  <>
+                    <tr
+                      key={r.id}
+                      className="aud-row"
+                      onClick={() => setExpanded(isOpen ? null : r.id)}
+                    >
+                      <td>
+                        {isOpen ? <ChevronDown size={14} color="#78716c" /> : <ChevronRight size={14} color="#a8a29e" />}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap", fontSize: 12, color: "#57534e" }}>{r.atLocal}</td>
+                      <td style={{ fontWeight: 600 }}>{r.actorName}</td>
+                      <td className="cell-action">
+                        <span className={`aud-chip ${cat}`}>{r.action}</span>
+                      </td>
+                      <td style={{ fontSize: 12, color: "#57534e" }}>{r.entityType ?? "—"}</td>
+                      <td style={{ textAlign: "right", fontFamily: "ui-monospace", fontSize: 11, color: "#a8a29e" }}>
+                        {r.entityId ? `#${r.entityId.slice(0, 8)}` : "—"}
+                      </td>
+                    </tr>
+                    {isOpen && r.meta && (
+                      <tr key={r.id + "-meta"}>
+                        <td colSpan={6} style={{ padding: 0 }}>
+                          <div className="aud-meta">
+                            <div className="aud-meta-row"><b>Action</b><span>{r.action}</span></div>
+                            <div className="aud-meta-row"><b>Entity</b><span>{r.entityType ?? "—"}{r.entityId ? ` · #${r.entityId}` : ""}</span></div>
+                            <div className="aud-meta-row"><b>Actor</b><span>{r.actorName}</span></div>
+                            <div className="aud-meta-row"><b>Details</b><pre>{JSON.stringify(r.meta, null, 2)}</pre></div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
