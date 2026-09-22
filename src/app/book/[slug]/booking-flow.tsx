@@ -476,20 +476,20 @@ function DetailsStep({ organizationSlug, service, staff, slot, date, policies, o
       </div>
 
       <div className="f">
-        <label>Full name</label>
-        <input type="text" className="input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" />
+        <label htmlFor="customer-name">Full name</label>
+        <input id="customer-name" type="text" className="input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" />
       </div>
       <div className="f">
-        <label>Email</label>
-        <input type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
+        <label htmlFor="customer-email">Email</label>
+        <input id="customer-email" type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
       </div>
       <div className="f">
-        <label>Phone</label>
-        <input type="tel" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+971 50 123 4567" />
+        <label htmlFor="customer-phone">Phone</label>
+        <input id="customer-phone" type="tel" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+971 50 123 4567" />
       </div>
       <div className="f">
-        <label>Notes (optional)</label>
-        <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything we should know..." />
+        <label htmlFor="customer-notes">Notes (optional)</label>
+        <textarea id="customer-notes" className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything we should know..." />
       </div>
 
       {(policies?.bookingTerms || policies?.privacyNotice) && (

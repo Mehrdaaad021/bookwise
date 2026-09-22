@@ -3,162 +3,224 @@
 
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, UserCheck, UserX } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
+import "../dash.css";
+
+const extraCss = `
+.fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fgrid .full { grid-column: 1 / -1; }
+.chk { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #44403c; }
+.chklist { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 12px; background: #faf9f6; border: 1px solid #e8e5df; border-radius: 10px; }
+.chipmini { display: inline-flex; padding: 2px 8px; border-radius: 999px; background: #f5f4f0; border: 1px solid #e8e5df; font-size: 10.5px; font-weight: 600; color: #57534e; margin: 0 4px 4px 0; }
+`;
+
+type StaffRow = {
+  id: string; name: string; role: string | null; bio: string | null;
+  email: string | null; phone: string | null; isActive: boolean;
+  services: { id: string; name: string }[];
+};
 
 export default function StaffPage() {
   const { data: ws } = trpc.workspace.getMyWorkspace.useQuery();
   const utils = trpc.useUtils();
+  const orgId = ws?.organization.id ?? "";
 
-  const { data: staff, isLoading } = trpc.staff.listAdminStaff.useQuery(
-    { organizationId: ws?.organization.id ?? "" },
-    { enabled: !!ws?.organization.id }
+  const { data: rows, isLoading } = trpc.staff.listAdminStaff.useQuery(
+    { organizationId: orgId }, { enabled: !!orgId }
   );
   const { data: serviceOptions } = trpc.staff.listServiceOptions.useQuery(
-    { organizationId: ws?.organization.id ?? "" },
-    { enabled: !!ws?.organization.id }
+    { organizationId: orgId }, { enabled: !!orgId }
   );
 
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("");
-  const [bio, setBio] = useState("");
-  const [serviceIds, setServiceIds] = useState<string[]>([]);
-  const [formError, setFormError] = useState("");
+  const [editing, setEditing] = useState<StaffRow | "new" | null>(null);
+  const refresh = () => utils.staff.listAdminStaff.invalidate();
+  const update = trpc.staff.updateStaff.useMutation({ onSuccess: refresh });
 
-  const createStaff = trpc.staff.createStaff.useMutation({
-    onSuccess: () => {
-      utils.staff.listAdminStaff.invalidate();
-      setShowForm(false);
-      setName(""); setRole(""); setBio(""); setServiceIds([]); setFormError("");
-    },
-    onError: (err) => setFormError(err.message),
-  });
+  return (
+    <div>
+      <style>{extraCss}</style>
+      <div className="dh">
+        <div>
+          <h1>Staff</h1>
+          <p>Professionals, roles and the services they can perform</p>
+        </div>
+        <div className="dh-actions">
+          <button className="btn btn-dark" onClick={() => setEditing("new")}>
+            <Plus size={14} /> New professional
+          </button>
+        </div>
+      </div>
 
-  const updateStaff = trpc.staff.updateStaff.useMutation({
-    onSuccess: () => utils.staff.listAdminStaff.invalidate(),
-  });
+      <div className="panel">
+        {isLoading ? (
+          <div className="empty">Loading staff...</div>
+        ) : !rows || rows.length === 0 ? (
+          <div className="empty">No professionals yet.</div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr><th>Professional</th><th>Contact</th><th>Services</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <div style={{ fontWeight: 700 }}>{s.name}</div>
+                    <div style={{ fontSize: 11.5, color: "#a8a29e" }}>{s.role ?? "—"}</div>
+                  </td>
+                  <td style={{ fontSize: 12 }}>
+                    <div>{s.email ?? "—"}</div>
+                    <div style={{ color: "#a8a29e" }}>{s.phone ?? ""}</div>
+                  </td>
+                  <td>
+                    {s.services.length === 0 ? <span style={{ color: "#a8a29e" }}>—</span> :
+                      s.services.map((v) => <span key={v.id} className="chipmini">{v.name}</span>)}
+                  </td>
+                  <td>
+                    {s.isActive ? (
+                      <span className="badge b-confirmed"><i />active</span>
+                    ) : (
+                      <span className="badge b-no_show"><i />inactive</span>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditing(s)}>
+                        <Pencil size={12} /> Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={update.isPending}
+                        onClick={() => update.mutate({ organizationId: orgId, staffId: s.id, isActive: !s.isActive })}
+                      >
+                        {s.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {editing && (
+        <StaffDrawer
+          key={editing === "new" ? "new" : editing.id}
+          orgId={orgId}
+          initial={editing}
+          serviceOptions={serviceOptions ?? []}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); refresh(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StaffDrawer({ orgId, initial, serviceOptions, onClose, onSaved }: {
+  orgId: string;
+  initial: StaffRow | "new";
+  serviceOptions: { id: string; name: string }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isNew = initial === "new";
+  const base = isNew ? null : initial;
+
+  const [name, setName] = useState(base?.name ?? "");
+  const [role, setRole] = useState(base?.role ?? "");
+  const [email, setEmail] = useState(base?.email ?? "");
+  const [phone, setPhone] = useState(base?.phone ?? "");
+  const [isActive, setIsActive] = useState(base?.isActive ?? true);
+  const [serviceIds, setServiceIds] = useState<string[]>(base?.services.map((s) => s.id) ?? []);
+
+  const create = trpc.staff.createStaff.useMutation({ onSuccess: onSaved });
+  const update = trpc.staff.updateStaff.useMutation({ onSuccess: onSaved });
 
   const toggleService = (id: string) =>
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
-    createStaff.mutate({
-      organizationId: ws?.organization.id ?? "",
-      name,
-      role: role || undefined,
-      bio: bio || undefined,
-      serviceIds: serviceIds.length ? serviceIds : undefined,
-    });
+  const submit = () => {
+    if (isNew) {
+      create.mutate({
+        organizationId: orgId,
+        name,
+        role: role || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        serviceIds,
+      });
+    } else {
+      update.mutate({
+        organizationId: orgId,
+        staffId: (initial as StaffRow).id,
+        name,
+        role: role || undefined,
+        isActive,
+        serviceIds,
+      });
+    }
   };
 
+  const busy = create.isPending || update.isPending;
+  const err = create.error ?? update.error;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-stone-800">Staff</h1>
-          <p className="text-sm text-stone-500">Your team and the services they perform</p>
+    <>
+      <div className="drawer-backdrop" onClick={onClose} />
+      <aside className="drawer">
+        <div className="drawer-head">
+          <h2>{isNew ? "New professional" : "Edit professional"}</h2>
+          <button className="drawer-x" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={() => setShowForm((v) => !v)}>
-          <Plus className="w-4 h-4 mr-2" /> New staff
-        </Button>
-      </div>
 
-      {showForm && (
-        <Card className="shadow-sm border-orange-200">
-          <CardContent className="p-4">
-            <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium text-stone-700">Full name *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} required
-                  className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-300" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-stone-700">Role / title</label>
-                <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Senior Therapist"
-                  className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-300" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-sm font-medium text-stone-700">Bio</label>
-                <input value={bio} onChange={(e) => setBio(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-300" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-sm font-medium text-stone-700">Performs these services</label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {(serviceOptions ?? []).map((s) => (
-                    <button type="button" key={s.id} onClick={() => toggleService(s.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                        serviceIds.includes(s.id)
-                          ? "bg-orange-500 text-white border-orange-500"
-                          : "bg-white text-stone-600 border-stone-300 hover:border-orange-300"
-                      }`}>
-                      {s.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {formError && (
-                <div className="sm:col-span-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{formError}</div>
-              )}
-              <div className="sm:col-span-2 flex gap-2">
-                <Button type="submit" disabled={createStaff.isPending}
-                  className="bg-orange-500 hover:bg-orange-600 text-white">
-                  {createStaff.isPending ? "Saving..." : "Save staff"}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {isLoading ? (
-        <Card><CardContent className="p-8 text-center text-stone-500">Loading staff...</CardContent></Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(staff ?? []).map((s) => (
-            <Card key={s.id} className={`shadow-sm border-stone-200 ${!s.isActive ? "opacity-60" : ""}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-semibold">
-                      {s.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-stone-800">{s.name}</p>
-                      <p className="text-xs text-stone-500">{s.role ?? "—"}</p>
-                    </div>
-                  </div>
-                  <button
-                    disabled={updateStaff.isPending}
-                    onClick={() => updateStaff.mutate({ organizationId: ws!.organization.id, staffId: s.id, isActive: !s.isActive })}
-                    className={`text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 disabled:opacity-50 ${
-                      s.isActive
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                        : "bg-stone-100 text-stone-500 border-stone-200 hover:bg-stone-200"
-                    }`}>
-                    {s.isActive ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
-                    {s.isActive ? "Active" : "Inactive"}
-                  </button>
-                </div>
-                {s.bio && <p className="text-xs text-stone-500 mt-2">{s.bio}</p>}
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {s.services.length === 0 && <span className="text-[10px] text-stone-400">No services assigned</span>}
-                  {s.services.map((sv) => (
-                    <span key={sv.id} className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200">
-                      {sv.name}
-                    </span>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="fgrid">
+          <div className="field full">
+            <label>Full name</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nour Ali" />
+          </div>
+          <div className="field">
+            <label>Role</label>
+            <input className="input" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Senior stylist" />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="field full">
+            <label>Phone</label>
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+971 50 ..." />
+          </div>
+          <div className="field full">
+            <label>Can perform</label>
+            <div className="chklist">
+              {serviceOptions.length === 0 && <span style={{ fontSize: 12, color: "#a8a29e" }}>No services yet</span>}
+              {serviceOptions.map((s) => (
+                <label key={s.id} className="chk">
+                  <input type="checkbox" checked={serviceIds.includes(s.id)} onChange={() => toggleService(s.id)} />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+          </div>
+          {!isNew && (
+            <label className="chk full">
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+              Active (visible for booking)
+            </label>
+          )}
         </div>
-      )}
-    </div>
+
+        {err && <div className="err-box">{err.message}</div>}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+          <button className="btn btn-dark" style={{ flex: 1, justifyContent: "center" }} disabled={busy || !name} onClick={submit}>
+            {busy ? "Saving..." : isNew ? "Create" : "Save changes"}
+          </button>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        </div>
+      </aside>
+    </>
   );
 }

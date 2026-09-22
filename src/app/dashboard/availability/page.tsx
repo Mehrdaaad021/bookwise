@@ -3,19 +3,33 @@
 
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
+import "../dash.css";
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const extraCss = `
+.hrow { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid #f5f4f0; flex-wrap: wrap; }
+.hrow:last-child { border-bottom: none; }
+.hrow .day { width: 96px; font-size: 13px; font-weight: 700; }
+.hrow .input { width: auto; }
+.fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fgrid .full { grid-column: 1 / -1; }
+.mini-form { padding: 14px 18px; background: #faf9f6; border-top: 1px solid #f0eee9; }
+.listrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 18px; border-bottom: 1px solid #f5f4f0; font-size: 13px; }
+.listrow:last-child { border-bottom: none; }
+.listrow .meta { color: #78716c; font-size: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 1000px) { .grid2 { grid-template-columns: 1fr; } }
+`;
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function AvailabilityPage() {
   const { data: ws } = trpc.workspace.getMyWorkspace.useQuery();
   const utils = trpc.useUtils();
+  const orgId = ws?.organization.id ?? "";
 
   const { data, isLoading } = trpc.availability.getAvailabilitySettings.useQuery(
-    { organizationId: ws?.organization.id ?? "" },
-    { enabled: !!ws?.organization.id }
+    { organizationId: orgId }, { enabled: !!orgId }
   );
 
   const refresh = () => utils.availability.getAvailabilitySettings.invalidate();
@@ -30,155 +44,158 @@ export default function AvailabilityPage() {
 
   const [holidayDate, setHolidayDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
+
   const [toStaff, setToStaff] = useState("");
   const [toStart, setToStart] = useState("");
   const [toEnd, setToEnd] = useState("");
   const [toReason, setToReason] = useState("");
+
   const [brStaff, setBrStaff] = useState("");
   const [brDay, setBrDay] = useState("1");
   const [brStart, setBrStart] = useState("13:00");
   const [brEnd, setBrEnd] = useState("14:00");
 
-  const inputCls = "px-3 py-2 border border-stone-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-orange-300";
-
-  if (isLoading) return <div className="p-8 text-center text-stone-500">Loading availability...</div>;
+  if (isLoading || !data) return <div className="panel"><div className="empty">Loading availability...</div></div>;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-stone-800">Availability</h1>
-        <p className="text-sm text-stone-500">Business hours, holidays, breaks, and time off</p>
+    <div>
+      <style>{extraCss}</style>
+      <div className="dh">
+        <div>
+          <h1>Availability</h1>
+          <p>Business hours, holidays, breaks and time-off — the inputs of the scheduling engine</p>
+        </div>
       </div>
 
-      <Card className="shadow-sm border-stone-200">
-        <CardHeader><CardTitle className="text-base">Business hours (per weekday)</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {(data?.businessHours ?? []).map((row) => (
-            <BusinessHoursRow key={row.dayOfWeek} row={row}
-              saving={upsertHours.isPending}
-              onSave={(payload) => upsertHours.mutate({ organizationId: ws!.organization.id, ...payload })} />
-          ))}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="shadow-sm border-stone-200">
-          <CardHeader><CardTitle className="text-base">Holidays & closures</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <input type="date" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} className={inputCls} />
-              <input placeholder="Name (e.g. National Day)" value={holidayName} onChange={(e) => setHolidayName(e.target.value)} className={inputCls + " flex-1 min-w-[140px]"} />
-              <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white"
-                disabled={!holidayDate || !holidayName || addHoliday.isPending}
-                onClick={() => addHoliday.mutate({ organizationId: ws!.organization.id, date: holidayDate, name: holidayName })}>
-                <Plus className="w-4 h-4" /> Add
-              </Button>
-            </div>
-            <div className="space-y-1.5">
-              {(data?.holidays ?? []).length === 0 && <p className="text-xs text-stone-400">No holidays defined.</p>}
-              {(data?.holidays ?? []).map((h) => (
-                <div key={h.id} className="flex items-center justify-between p-2 rounded-lg border border-stone-100 bg-stone-50 text-sm">
-                  <span className="text-stone-700">{h.date} — {h.name}</span>
-                  <button onClick={() => deleteHoliday.mutate({ organizationId: ws!.organization.id, holidayId: h.id })}
-                    className="text-red-500 hover:bg-red-50 rounded p-1"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-stone-200">
-          <CardHeader><CardTitle className="text-base">Staff time off</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <select value={toStaff} onChange={(e) => setToStaff(e.target.value)} className={inputCls}>
-                <option value="">Select staff...</option>
-                {(data?.staffOptions ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <input placeholder="Reason" value={toReason} onChange={(e) => setToReason(e.target.value)} className={inputCls} />
-              <input type="date" value={toStart} onChange={(e) => setToStart(e.target.value)} className={inputCls} />
-              <input type="date" value={toEnd} onChange={(e) => setToEnd(e.target.value)} className={inputCls} />
-            </div>
-            <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={!toStaff || !toStart || !toEnd || addTimeOff.isPending}
-              onClick={() => addTimeOff.mutate({ organizationId: ws!.organization.id, staffId: toStaff, startDate: toStart, endDate: toEnd, reason: toReason || undefined })}>
-              <Plus className="w-4 h-4 mr-1" /> Add time off
-            </Button>
-            <div className="space-y-1.5">
-              {(data?.timeOff ?? []).length === 0 && <p className="text-xs text-stone-400">No time off recorded.</p>}
-              {(data?.timeOff ?? []).map((t) => (
-                <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border border-stone-100 bg-stone-50 text-sm">
-                  <span className="text-stone-700">{t.staffName}: {t.startDate} → {t.endDate}{t.reason ? ` (${t.reason})` : ""}</span>
-                  <button onClick={() => deleteTimeOff.mutate({ organizationId: ws!.organization.id, timeOffId: t.id })}
-                    className="text-red-500 hover:bg-red-50 rounded p-1"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="shadow-sm border-stone-200">
-        <CardHeader><CardTitle className="text-base">Recurring weekly breaks</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <select value={brStaff} onChange={(e) => setBrStaff(e.target.value)} className={inputCls}>
-              <option value="">Select staff...</option>
-              {(data?.staffOptions ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <select value={brDay} onChange={(e) => setBrDay(e.target.value)} className={inputCls}>
-              {DAY_NAMES.map((d, i) => <option key={d} value={i}>{d}</option>)}
-            </select>
-            <input type="time" value={brStart} onChange={(e) => setBrStart(e.target.value)} className={inputCls} />
-            <input type="time" value={brEnd} onChange={(e) => setBrEnd(e.target.value)} className={inputCls} />
-            <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={!brStaff || addBreak.isPending}
-              onClick={() => addBreak.mutate({ organizationId: ws!.organization.id, staffId: brStaff, dayOfWeek: Number(brDay), startTime: brStart, endTime: brEnd, label: "Break" })}>
-              <Plus className="w-4 h-4" /> Add break
-            </Button>
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <div className="panel-head"><h2>Weekly business hours</h2></div>
+        {data.businessHours.map((h) => (
+          <div className="hrow" key={h.dayOfWeek}>
+            <span className="day">{DAYS[h.dayOfWeek]}</span>
+            <label className="chk" style={{ width: 90 }}>
+              <input
+                type="checkbox"
+                checked={h.isOpen}
+                onChange={(e) => upsertHours.mutate({
+                  organizationId: orgId, dayOfWeek: h.dayOfWeek,
+                  isOpen: e.target.checked, openTime: h.openTime, closeTime: h.closeTime,
+                })}
+              />
+              Open
+            </label>
+            <input
+              type="time" className="input" value={h.openTime}
+              onChange={(e) => upsertHours.mutate({
+                organizationId: orgId, dayOfWeek: h.dayOfWeek,
+                isOpen: h.isOpen, openTime: e.target.value, closeTime: h.closeTime,
+              })}
+            />
+            <span style={{ color: "#a8a29e" }}>→</span>
+            <input
+              type="time" className="input" value={h.closeTime}
+              onChange={(e) => upsertHours.mutate({
+                organizationId: orgId, dayOfWeek: h.dayOfWeek,
+                isOpen: h.isOpen, openTime: h.openTime, closeTime: e.target.value,
+              })}
+            />
           </div>
-          <div className="space-y-1.5">
-            {(data?.breaks ?? []).length === 0 && <p className="text-xs text-stone-400">No breaks defined.</p>}
-            {(data?.breaks ?? []).map((b) => (
-              <div key={b.id} className="flex items-center justify-between p-2 rounded-lg border border-stone-100 bg-stone-50 text-sm">
-                <span className="text-stone-700">{b.staffName} · {DAY_NAMES[b.dayOfWeek]} · {b.startTime}–{b.endTime}</span>
-                <button onClick={() => deleteBreak.mutate({ organizationId: ws!.organization.id, breakId: b.id })}
-                  className="text-red-500 hover:bg-red-50 rounded p-1"><Trash2 className="w-4 h-4" /></button>
+        ))}
+      </div>
+
+      <div className="grid2">
+        <div className="panel">
+          <div className="panel-head"><h2>Holidays (closed days)</h2></div>
+          {data.holidays.length === 0 && <div className="empty">No holidays registered.</div>}
+          {data.holidays.map((h) => (
+            <div className="listrow" key={h.id}>
+              <div>
+                <b>{h.name}</b>
+                <div className="meta">{h.date}</div>
               </div>
-            ))}
+              <button className="btn btn-danger btn-sm" onClick={() => deleteHoliday.mutate({ organizationId: orgId, holidayId: h.id })}>
+                <Trash2 size={12} /> Remove
+              </button>
+            </div>
+          ))}
+          <div className="mini-form fgrid">
+            <input type="date" className="input" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} />
+            <input className="input" placeholder="Holiday name" value={holidayName} onChange={(e) => setHolidayName(e.target.value)} />
+            <button
+              className="btn btn-dark full"
+              disabled={!holidayDate || !holidayName}
+              onClick={() => { addHoliday.mutate({ organizationId: orgId, date: holidayDate, name: holidayName }); setHolidayDate(""); setHolidayName(""); }}
+            >
+              <Plus size={13} /> Add holiday
+            </button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+        </div>
 
-function BusinessHoursRow({ row, saving, onSave }: {
-  row: { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string };
-  saving: boolean;
-  onSave: (p: { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string }) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(row.isOpen);
-  const [openTime, setOpenTime] = useState(row.openTime);
-  const [closeTime, setCloseTime] = useState(row.closeTime);
+        <div className="panel">
+          <div className="panel-head"><h2>Staff time-off</h2></div>
+          {data.timeOff.length === 0 && <div className="empty">No time-off registered.</div>}
+          {data.timeOff.map((t) => (
+            <div className="listrow" key={t.id}>
+              <div>
+                <b>{t.staffName}</b>
+                <div className="meta">{t.startDate} → {t.endDate}{t.reason ? ` · ${t.reason}` : ""}</div>
+              </div>
+              <button className="btn btn-danger btn-sm" onClick={() => deleteTimeOff.mutate({ organizationId: orgId, timeOffId: t.id })}>
+                <Trash2 size={12} /> Remove
+              </button>
+            </div>
+          ))}
+          <div className="mini-form fgrid">
+            <select className="input" value={toStaff} onChange={(e) => setToStaff(e.target.value)}>
+              <option value="">Professional...</option>
+              {data.staffOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <input className="input" placeholder="Reason" value={toReason} onChange={(e) => setToReason(e.target.value)} />
+            <input type="date" className="input" value={toStart} onChange={(e) => setToStart(e.target.value)} />
+            <input type="date" className="input" value={toEnd} onChange={(e) => setToEnd(e.target.value)} />
+            <button
+              className="btn btn-dark full"
+              disabled={!toStaff || !toStart || !toEnd}
+              onClick={() => { addTimeOff.mutate({ organizationId: orgId, staffId: toStaff, startDate: toStart, endDate: toEnd, reason: toReason || undefined }); setToStart(""); setToEnd(""); }}
+            >
+              <Plus size={13} /> Add time-off
+            </button>
+          </div>
+        </div>
+      </div>
 
-  const dirty = isOpen !== row.isOpen || openTime !== row.openTime || closeTime !== row.closeTime;
-  const inputCls = "px-2 py-1.5 border border-stone-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-orange-300";
-
-  return (
-    <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg border border-stone-100 bg-stone-50">
-      <span className="w-24 text-sm font-medium text-stone-700">{DAY_NAMES[row.dayOfWeek]}</span>
-      <label className="flex items-center gap-2 text-sm text-stone-600">
-        <input type="checkbox" checked={isOpen} onChange={(e) => setIsOpen(e.target.checked)} className="rounded border-stone-300" />
-        Open
-      </label>
-      <input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} disabled={!isOpen} className={inputCls} />
-      <span className="text-stone-400 text-sm">to</span>
-      <input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} disabled={!isOpen} className={inputCls} />
-      <Button size="sm" variant="outline" disabled={!dirty || saving}
-        onClick={() => onSave({ dayOfWeek: row.dayOfWeek, isOpen, openTime, closeTime })}>
-        Save
-      </Button>
+      <div className="panel" style={{ marginTop: 14 }}>
+        <div className="panel-head"><h2>Recurring weekly breaks</h2></div>
+        {data.breaks.length === 0 && <div className="empty">No recurring breaks.</div>}
+        {data.breaks.map((b) => (
+          <div className="listrow" key={b.id}>
+            <div>
+              <b>{b.staffName}</b>
+              <div className="meta">{DAYS[b.dayOfWeek]} · {b.startTime}–{b.endTime}{b.label ? ` · ${b.label}` : ""}</div>
+            </div>
+            <button className="btn btn-danger btn-sm" onClick={() => deleteBreak.mutate({ organizationId: orgId, breakId: b.id })}>
+              <Trash2 size={12} /> Remove
+            </button>
+          </div>
+        ))}
+        <div className="mini-form fgrid">
+          <select className="input" value={brStaff} onChange={(e) => setBrStaff(e.target.value)}>
+            <option value="">Professional...</option>
+            {data.staffOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select className="input" value={brDay} onChange={(e) => setBrDay(e.target.value)}>
+            {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+          </select>
+          <input type="time" className="input" value={brStart} onChange={(e) => setBrStart(e.target.value)} />
+          <input type="time" className="input" value={brEnd} onChange={(e) => setBrEnd(e.target.value)} />
+          <button
+            className="btn btn-dark full"
+            disabled={!brStaff}
+            onClick={() => addBreak.mutate({ organizationId: orgId, staffId: brStaff, dayOfWeek: Number(brDay), startTime: brStart, endTime: brEnd })}
+          >
+            <Plus size={13} /> Add break
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

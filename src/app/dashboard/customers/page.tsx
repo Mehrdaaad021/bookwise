@@ -3,146 +3,252 @@
 
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, UserCircle } from "lucide-react";
+import { formatFils } from "@/lib/money";
+import { Search, X, CalendarClock, Wallet, TrendingDown, UserCheck, AlertCircle, Mail, Phone as PhoneIcon } from "lucide-react";
+import "../dash.css";
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  confirmed: "bg-emerald-100 text-emerald-700",
-  checked_in: "bg-blue-100 text-blue-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  completed: "bg-stone-200 text-stone-700",
-  cancelled: "bg-red-100 text-red-600",
-  no_show: "bg-stone-200 text-stone-500",
+const extraCss = `
+.cstat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 4px; }
+.cstat .kpi { padding: 12px; }
+.cstat .kpi .lbl { font-size: 10.5px; }
+.cstat .kpi .lbl i { width: 22px; height: 22px; }
+.cstat .kpi .val { font-size: 20px; margin-top: 6px; }
+.histrow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px dashed #f0eee9; font-size: 13px; }
+.histrow:last-child { border-bottom: none; }
+.histrow .when { width: 120px; flex-shrink: 0; font-weight: 600; color: #44403c; font-size: 12px; }
+.histrow .svc { flex: 1; min-width: 0; }
+.histrow .svc b { display: block; font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.histrow .svc span { font-size: 11.5px; color: #78716c; }
+.histrow .price { font-size: 12.5px; font-weight: 700; color: #44403c; white-space: nowrap; }
+.contact-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #faf9f6; border: 1px solid #e8e5df; border-radius: 8px; font-size: 12px; color: #44403c; margin-right: 6px; }
+.rate-bar { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; font-size: 11.5px; }
+.rate-bar .rate { padding: 3px 9px; border-radius: 6px; font-weight: 600; }
+.r-ok { background: #eef7ee; color: #166534; }
+.r-warn { background: #fef3c7; color: #92400e; }
+.r-bad { background: #fee2e2; color: #991b1b; }
+.empty-cust { text-align: center; padding: 22px; color: #a8a29e; font-size: 13px; }
+`;
+
+const STATUS_CLASS: Record<string, string> = {
+  pending: "b-pending",
+  confirmed: "b-confirmed",
+  checked_in: "b-checked_in",
+  in_progress: "b-in_progress",
+  completed: "b-completed",
+  cancelled: "b-cancelled",
+  no_show: "b-no_show",
+};
+
+type CustRow = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  totalAppointments: number;
+  completedAppointments: number;
+  cancelledAppointments: number;
+  noShowCount: number;
+  totalSpentFils: number;
+  lastAppointmentAt: string | null;
+  consentGiven: boolean;
 };
 
 export default function CustomersPage() {
   const { data: ws } = trpc.workspace.getMyWorkspace.useQuery();
+  const orgId = ws?.organization.id ?? "";
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data: customers, isLoading } = trpc.customers.listCustomers.useQuery(
-    { organizationId: ws?.organization.id ?? "", search: search || undefined },
-    { enabled: !!ws?.organization.id }
+  const { data: rows, isLoading } = trpc.customers.listCustomers.useQuery(
+    { organizationId: orgId, search: search || undefined },
+    { enabled: !!orgId }
   );
 
-  const { data: detail, isLoading: detailLoading } = trpc.customers.getCustomerDetail.useQuery(
-    { organizationId: ws?.organization.id ?? "", customerId: selectedId ?? "" },
-    { enabled: !!selectedId }
+  const { data: detail } = trpc.customers.getCustomerDetail.useQuery(
+    { organizationId: orgId, customerId: selectedId ?? "" },
+    { enabled: !!selectedId && !!orgId }
   );
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-stone-800">Customers</h1>
-        <p className="text-sm text-stone-500">Your client base and their booking history</p>
-      </div>
-
-      <div className="relative max-w-md">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, email, phone..."
-          className="w-full pl-9 pr-3 py-2 border border-stone-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-orange-300"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* List */}
-        <div className="space-y-2">
-          {isLoading ? (
-            <Card><CardContent className="p-8 text-center text-stone-500">Loading customers...</CardContent></Card>
-          ) : (customers ?? []).length === 0 ? (
-            <Card><CardContent className="p-8 text-center text-stone-500">No customers found.</CardContent></Card>
-          ) : (
-            (customers ?? []).map((c) => (
-              <button key={c.id} onClick={() => setSelectedId(c.id)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                  selectedId === c.id ? "border-orange-400 bg-orange-50" : "border-stone-200 bg-white hover:border-orange-300"
-                }`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-500">
-                      <UserCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-stone-800">{c.name}</p>
-                      <p className="text-xs text-stone-500">{c.email ?? c.phone}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-semibold text-stone-700">AED {(c.totalSpentFils / 100).toLocaleString()}</p>
-                    <p className="text-[10px] text-stone-400">{c.totalAppointments} bookings</p>
-                  </div>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-
-        {/* Detail */}
+    <div>
+      <style>{extraCss}</style>
+      <div className="dh">
         <div>
-          {!selectedId ? (
-            <Card className="h-full"><CardContent className="p-8 text-center text-stone-400 text-sm">
-              Select a customer to see their history
-            </CardContent></Card>
-          ) : detailLoading ? (
-            <Card><CardContent className="p-8 text-center text-stone-500">Loading history...</CardContent></Card>
-          ) : detail ? (
-            <Card className="shadow-sm border-stone-200">
-              <CardHeader>
-                <CardTitle className="text-base">{detail.customer.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  <div className="p-2 rounded-lg bg-stone-50 border border-stone-100">
-                    <p className="text-lg font-bold text-stone-800">{detail.customer.totalAppointments}</p>
-                    <p className="text-[10px] text-stone-500">Total</p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-100">
-                    <p className="text-lg font-bold text-emerald-700">{detail.customer.completedAppointments}</p>
-                    <p className="text-[10px] text-emerald-600">Completed</p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-red-50 border border-red-100">
-                    <p className="text-lg font-bold text-red-600">{detail.customer.cancelledAppointments}</p>
-                    <p className="text-[10px] text-red-500">Cancelled</p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-stone-50 border border-stone-100">
-                    <p className="text-lg font-bold text-stone-600">{detail.customer.noShowCount}</p>
-                    <p className="text-[10px] text-stone-500">No-shows</p>
-                  </div>
-                </div>
-
-                <div className="text-xs text-stone-500 space-y-1">
-                  <p>Email: {detail.customer.email ?? "—"}</p>
-                  <p>Phone: {detail.customer.phone ?? "—"}</p>
-                  <p>Lifetime value: <span className="font-semibold">AED {(detail.customer.totalSpentFils / 100).toLocaleString()}</span></p>
-                  <p>Consent: {detail.customer.consentGiven ? "✅ given" : "❌ not given"}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-stone-700 mb-2">Booking history</p>
-                  <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-                    {detail.history.length === 0 && <p className="text-xs text-stone-400">No appointments yet.</p>}
-                    {detail.history.map((h) => (
-                      <div key={h.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-stone-100 bg-stone-50">
-                        <div>
-                          <p className="text-xs font-medium text-stone-700">{h.serviceName} · {h.staffName}</p>
-                          <p className="text-[10px] text-stone-400">{h.whenLocal}</p>
-                        </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[h.status] ?? "bg-stone-100 text-stone-600"}`}>
-                          {h.status.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
+          <h1>Customers</h1>
+          <p>Client records, lifetime stats and appointment history</p>
         </div>
       </div>
+
+      <div className="filters">
+        <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+          <Search size={14} style={{ position: "absolute", left: 11, top: 11, color: "#a8a29e" }} />
+          <input
+            className="input"
+            style={{ paddingLeft: 32, width: "100%" }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email or phone..."
+          />
+        </div>
+        <div style={{ fontSize: 12.5, color: "#78716c" }}>
+          {rows?.length ?? 0} customers shown
+        </div>
+      </div>
+
+      <div className="panel">
+        {isLoading ? (
+          <div className="empty">Loading customers...</div>
+        ) : !rows || rows.length === 0 ? (
+          <div className="empty">
+            {search ? "No customers match your search." : "No customers yet — they appear after the first booking."}
+          </div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Appointments</th>
+                <th>Lifetime value</th>
+                <th>Last visit</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontWeight: 700 }}>{c.name}</span>
+                      {c.consentGiven && <UserCheck size={13} color="#16a34a" />}
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 12, color: "#57534e" }}>
+                    {c.email && <div>{c.email}</div>}
+                    {c.phone && <div style={{ color: "#a8a29e" }}>{c.phone}</div>}
+                    {!c.email && !c.phone && <span style={{ color: "#c9c5bc" }}>—</span>}
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <b>{c.completedAppointments}</b>
+                    <span style={{ color: "#a8a29e", marginLeft: 4 }}>of {c.totalAppointments}</span>
+                  </td>
+                  <td style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{formatFils(c.totalSpentFils)}</td>
+                  <td style={{ fontSize: 12, color: "#78716c", whiteSpace: "nowrap" }}>
+                    {c.lastAppointmentAt ? new Date(c.lastAppointmentAt).toLocaleDateString("en-GB") : "—"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setSelectedId(c.id)}>
+                      View history
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {selectedId && detail && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setSelectedId(null)} />
+          <aside className="drawer">
+            <div className="drawer-head">
+              <h2>{detail.customer.name}</h2>
+              <button className="drawer-x" onClick={() => setSelectedId(null)} aria-label="Close">
+                <X size={14} />
+              </button>
+            </div>
+
+            {(detail.customer.email || detail.customer.phone) && (
+              <div style={{ marginBottom: 14 }}>
+                {detail.customer.email && (
+                  <span className="contact-chip"><Mail size={12} /> {detail.customer.email}</span>
+                )}
+                {detail.customer.phone && (
+                  <span className="contact-chip"><PhoneIcon size={12} /> {detail.customer.phone}</span>
+                )}
+              </div>
+            )}
+
+            {detail.customer.consentGiven ? (
+              <div style={{ fontSize: 11.5, color: "#16a34a", marginBottom: 14, display: "flex", gap: 6, alignItems: "center" }}>
+                <UserCheck size={13} /> Consent given for booking
+              </div>
+            ) : (
+              <div style={{ fontSize: 11.5, color: "#a16207", marginBottom: 14, display: "flex", gap: 6, alignItems: "center" }}>
+                <AlertCircle size={13} /> No consent on record
+              </div>
+            )}
+
+            <div className="cstat">
+              <div className="kpi">
+                <div className="lbl"><i style={{ background: "#eef7ee", color: "#16a34a" }}><CalendarClock size={13} /></i> Completed</div>
+                <div className="val">{detail.customer.completedAppointments}</div>
+              </div>
+              <div className="kpi">
+                <div className="lbl"><i style={{ background: "#fef2f2", color: "#b91c1c" }}><TrendingDown size={13} /></i> Cancelled</div>
+                <div className="val">{detail.customer.cancelledAppointments}</div>
+              </div>
+              <div className="kpi">
+                <div className="lbl"><i style={{ background: "#f5f5f4", color: "#78716c" }}><AlertCircle size={13} /></i> No-show</div>
+                <div className="val">{detail.customer.noShowCount}</div>
+              </div>
+              <div className="kpi">
+                <div className="lbl"><i style={{ background: "#fef3e7", color: "#ea580c" }}><Wallet size={13} /></i> LTV</div>
+                <div className="val" style={{ fontSize: 16 }}>{formatFils(detail.customer.totalSpentFils)}</div>
+              </div>
+            </div>
+
+            <div className="rate-bar">
+              <span className="rate r-ok">
+                Completion: {detail.customer.totalAppointments
+                  ? Math.round((detail.customer.completedAppointments / detail.customer.totalAppointments) * 100)
+                  : 0}%
+              </span>
+              {detail.customer.cancelledAppointments > 0 && (
+                <span className="rate r-warn">
+                  Cancel: {Math.round((detail.customer.cancelledAppointments / detail.customer.totalAppointments) * 100)}%
+                </span>
+              )}
+              {detail.customer.noShowCount > 0 && (
+                <span className="rate r-bad">
+                  No-show: {Math.round((detail.customer.noShowCount / detail.customer.totalAppointments) * 100)}%
+                </span>
+              )}
+            </div>
+
+            {detail.customer.notes && (
+              <div className="dsec">
+                <h3>Notes</h3>
+                <div className="note-box">{detail.customer.notes}</div>
+              </div>
+            )}
+
+            <div className="dsec">
+              <h3>Appointment history</h3>
+              {detail.history.length === 0 ? (
+                <div className="empty-cust">No appointments yet.</div>
+              ) : (
+                detail.history.map((h) => (
+                  <div className="histrow" key={h.id}>
+                    <div className="when">{h.whenLocal}</div>
+                    <div className="svc">
+                      <b>{h.serviceName}</b>
+                      <span>{h.staffName}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span className={`badge ${STATUS_CLASS[h.status] ?? "b-completed"}`}>
+                        <i />{h.status.replace(/_/g, " ")}
+                      </span>
+                      <span className="price">{formatFils(h.priceFils)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </aside>
+        </>
+      )}
     </div>
   );
 }

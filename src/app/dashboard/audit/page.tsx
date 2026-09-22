@@ -1,7 +1,7 @@
 // src/app/dashboard/audit/page.tsx
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { trpc } from "@/trpc/client";
 import { ScrollText, ChevronDown, ChevronRight, Filter } from "lucide-react";
 import "../dash.css";
@@ -99,9 +99,8 @@ export default function AuditPage() {
                 const isOpen = expanded === r.id;
                 const cat = categoryFor(r.action);
                 return (
-                  <>
+                  <Fragment key={r.id}>
                     <tr
-                      key={r.id}
                       className="aud-row"
                       onClick={() => setExpanded(isOpen ? null : r.id)}
                     >
@@ -118,19 +117,22 @@ export default function AuditPage() {
                         {r.entityId ? `#${r.entityId.slice(0, 8)}` : "—"}
                       </td>
                     </tr>
-                    {isOpen && r.meta && (
-                      <tr key={r.id + "-meta"}>
+                    {isOpen && (
+                      <tr>
                         <td colSpan={6} style={{ padding: 0 }}>
                           <div className="aud-meta">
                             <div className="aud-meta-row"><b>Action</b><span>{r.action}</span></div>
                             <div className="aud-meta-row"><b>Entity</b><span>{r.entityType ?? "—"}{r.entityId ? ` · #${r.entityId}` : ""}</span></div>
                             <div className="aud-meta-row"><b>Actor</b><span>{r.actorName}</span></div>
-                            <div className="aud-meta-row"><b>Details</b><pre>{JSON.stringify(r.meta, null, 2)}</pre></div>
+                            <div className="aud-meta-row">
+                              <b>Details</b>
+                              <pre>{r.meta ? JSON.stringify(r.meta, null, 2) : "No additional details recorded."}</pre>
+                            </div>
                           </div>
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
